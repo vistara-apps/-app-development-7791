@@ -1,10 +1,13 @@
 import React, { useState, useRef } from 'react'
-import { Upload, Camera, X } from 'lucide-react'
+import { Upload, Camera, X, AlertCircle, Info } from 'lucide-react'
+import { useAuth } from '../hooks/useAuth'
 
 const FileUpload = ({ onFileUpload }) => {
+  const { hasAccess, getPhotoLimit, userDetails } = useAuth()
   const [isDragging, setIsDragging] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
+  const [error, setError] = useState(null)
   const fileInputRef = useRef(null)
 
   const handleDragOver = (e) => {
@@ -34,28 +37,113 @@ const FileUpload = ({ onFileUpload }) => {
   }
 
   const handleFiles = (files) => {
+    setError(null)
+    
+    // Check file types
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+    const invalidFiles = Array.from(files).filter(file => !validTypes.includes(file.type))
+    
+    if (invalidFiles.length > 0) {
+      setError(`Invalid file type(s). Only JPG, PNG, WebP, and HEIC images are supported.`)
+      return
+    }
+    
+    // Check file sizes
+    const maxSize = 10 * 1024 * 1024 // 10MB
+    const oversizedFiles = Array.from(files).filter(file => file.size > maxSize)
+    
+    if (oversizedFiles.length > 0) {
+      setError(`Some files exceed the 10MB size limit.`)
+      return
+    }
+    
+    // Check subscription limits
+    const photoLimit = getPhotoLimit()
+    const photosUsed = userDetails?.photosThisMonth || 0
+    const photosRemaining = photoLimit - photosUsed
+    
+    if (files.length > photosRemaining) {
+      setError(`You can only upload ${photosRemaining} more photos this month with your current plan.`)
+      return
+    }
+    
     setIsUploading(true)
     setUploadProgress(0)
 
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval)
+    // Start upload process
+    const uploadFiles = async () => {
+      try {
+        // Simulate initial upload progress
+        const progressInterval = setInterval(() => {
+          setUploadProgress(prev => {
+            if (prev >= 90) {
+              clearInterval(progressInterval)
+              return 90
+            }
+            return prev + 5
+          })
+        }, 100)
+        
+        // Call the parent component's upload handler
+        await onFileUpload(files)
+        
+        // Complete the progress
+        clearInterval(progressInterval)
+        setUploadProgress(100)
+        
+        // Reset after a short delay
+        setTimeout(() => {
           setIsUploading(false)
-          onFileUpload(files)
-          return 100
-        }
-        return prev + 20
-      })
-    }, 300)
+          setUploadProgress(0)
+        }, 1000)
+      } catch (err) {
+        clearInterval(progressInterval)
+        setError(err.message || 'Failed to upload files')
+        setIsUploading(false)
+      }
+    }
+    
+    uploadFiles()
   }
 
+  // Calculate subscription usage
+  const photoLimit = getPhotoLimit()
+  const photosUsed = userDetails?.photosThisMonth || 0
+  const usagePercentage = (photosUsed / photoLimit) * 100
+  
   return (
     <div className="glass-effect rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-white">Upload Photos</h3>
         <Camera className="w-5 h-5 text-blue-400" />
+      </div>
+
+      {error && (
+        <div className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg mb-4">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        </div>
+      )}
+      
+      <div className="mb-4">
+        <div className="flex items-center justify-between text-sm text-gray-400 mb-1">
+          <span>Monthly usage: {photosUsed} / {photoLimit} photos</span>
+          <span className={usagePercentage > 80 ? 'text-yellow-400' : ''}>
+            {Math.round(usagePercentage)}%
+          </span>
+        </div>
+        <div className="w-full bg-gray-700 rounded-full h-2">
+          <div 
+            className={`h-2 rounded-full ${
+              usagePercentage > 90 ? 'bg-red-500' : 
+              usagePercentage > 80 ? 'bg-yellow-500' : 
+              'bg-blue-500'
+            }`}
+            style={{ width: `${usagePercentage}%` }}
+          ></div>
+        </div>
       </div>
 
       <div
@@ -72,7 +160,7 @@ const FileUpload = ({ onFileUpload }) => {
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
           onChange={handleFileSelect}
           className="hidden"
         />
@@ -101,17 +189,37 @@ const FileUpload = ({ onFileUpload }) => {
             <div>
               <p className="text-white font-medium">Drop photos here or click to browse</p>
               <p className="text-sm text-gray-400 mt-1">
-                Supports JPG, PNG, WebP up to 10MB each
+                Supports JPG, PNG, WebP, HEIC up to 10MB each
               </p>
             </div>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors"
+              disabled={photosUsed >= photoLimit}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Browse Files
             </button>
+            
+            {photosUsed >= photoLimit && (
+              <div className="flex items-center justify-center text-yellow-400 text-sm mt-2">
+                <Info className="w-4 h-4 mr-1" />
+                <span>You've reached your monthly photo limit</span>
+              </div>
+            )}
           </div>
         )}
+      </div>
+      
+      <div className="mt-4 flex items-center text-xs text-gray-400">
+        <Info className="w-4 h-4 mr-1" />
+        <span>
+          Photos are analyzed using AI to detect damage types, object categories, and scene context.
+          {!hasAccess('advancedAnalysis') && (
+            <span className="text-yellow-400 ml-1">
+              Upgrade to Pro for advanced analysis features.
+            </span>
+          )}
+        </span>
       </div>
     </div>
   )
