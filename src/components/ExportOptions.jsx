@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, FileJson, FileSpreadsheet, FilePdf, Loader, AlertCircle } from 'lucide-react';
+import { Download, FileJson, FileSpreadsheet, FileText, Loader, AlertCircle } from 'lucide-react';
 import { exportClaimToJson, exportClaimToCsv, exportClaimToPdf } from '../services/export';
 import { useAuth } from '../hooks/useAuth';
 
@@ -110,7 +110,7 @@ const ExportOptions = ({ claimId, claimNumber }) => {
           {isExporting ? (
             <Loader className="w-5 h-5 animate-spin" />
           ) : (
-            <FilePdf className="w-5 h-5" />
+            <FileText className="w-5 h-5" />
           )}
           Export as PDF
           <span className="text-xs">(Coming Soon)</span>
@@ -127,4 +127,3 @@ const ExportOptions = ({ claimId, claimNumber }) => {
 };
 
 export default ExportOptions;
-
