@@ -44,7 +44,7 @@ ClaimSnap AI is an AI-powered web application that automatically tags and organi
    yarn install
    ```
 
-3. Create a `.env` file based on `.env.example` and fill in your API keys:
+3. Create a `.env.local` file based on `.env.example` and fill in your API keys:
    ```
    VITE_SUPABASE_URL=your_supabase_url
    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
@@ -109,6 +109,26 @@ CREATE TABLE photos (
 
 3. Create a storage bucket named `claim-photos` in your Supabase project
 
+## Deployment
+
+### Vercel Deployment
+
+This project is configured to deploy automatically to Vercel through GitHub Actions. To set up Vercel deployment:
+
+1. Create a Vercel account and create a new project
+2. Link your GitHub repository to the Vercel project
+3. Add the following secrets to your GitHub repository:
+   - `VERCEL_TOKEN`: Your Vercel API token
+   - `VERCEL_ORG_ID`: Your Vercel organization ID
+   - `VERCEL_PROJECT_ID`: Your Vercel project ID
+
+The GitHub Actions workflow will:
+1. Build the application
+2. Deploy to Vercel production for main/master branch
+3. Create preview deployments for pull requests
+
+If Vercel secrets are not configured, the workflow will still build the application but skip the deployment steps.
+
 ## Subscription Plans
 
 ClaimSnap AI offers three subscription tiers:
@@ -119,5 +139,5 @@ ClaimSnap AI offers three subscription tiers:
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the LICENSE file for details
 
